@@ -239,6 +239,126 @@ class LocationDetector:
             'presets': reg.get('engineering_presets', {})
         }
 
+    def detect_region_by_canvas_center(self):
+        """
+        Alternative detection using the map canvas center point.
+        Better for zoomed-in views where layer extents may be much
+        larger than the visible area.
+
+        Returns:
+            Same dict structure as detect_region().
+        """
+        from qgis.utils import iface
+        reg = self._load_registry()
+        crs_info = self.get_project_crs_info()
+
+        canvas = iface.mapCanvas()
+        center = canvas.center()
+        canvas_crs = canvas.mapSettings().destinationCrs()
+        wgs84 = QgsCoordinateReferenceSystem("EPSG:4326")
+
+        result = {
+            'detected': False,
+            'region_id': None,
+            'region_name': None,
+            'confidence': 'low',
+            'all_matches': [],
+            'extent_wgs84': None,
+            'crs_info': crs_info
+        }
+
+        # Transform canvas center to WGS84
+        try:
+            if canvas_crs != wgs84 and canvas_crs.isValid():
+                xform = QgsCoordinateTransform(
+                    canvas_crs, wgs84, QgsProject.instance()
+                )
+                center = xform.transform(center)
+        except Exception:
+            return result
+
+        # Also get canvas extent in WGS84
+        try:
+            ext = canvas.extent()
+            if canvas_crs != wgs84 and canvas_crs.isValid():
+                xform = QgsCoordinateTransform(
+                    canvas_crs, wgs84, QgsProject.instance()
+                )
+                ext = xform.transformBoundingBox(ext)
+            result['extent_wgs84'] = ext
+        except Exception:
+            pass
+
+        # Check which region bboxes contain the center point
+        matches = []
+        for region_id, region_data in reg.get('regions', {}).items():
+            bbox = region_data.get('bbox_wgs84')
+            if not bbox or len(bbox) != 4:
+                continue
+
+            reg_rect = QgsRectangle(bbox[0], bbox[1], bbox[2], bbox[3])
+            if reg_rect.contains(QgsPointXY(center)):
+                # Score by smallest bbox (most specific)
+                area = reg_rect.area()
+                matches.append((
+                    region_id,
+                    region_data['name'],
+                    area
+                ))
+
+        # Sort by smallest bbox first (most specific match)
+        matches.sort(key=lambda x: x[2])
+
+        if matches:
+            result['detected'] = True
+            result['region_id'] = matches[0][0]
+            result['region_name'] = matches[0][1]
+
+            # Canvas-center detection is inherently higher confidence
+            if crs_info['is_south_carolina']:
+                result['confidence'] = 'high'
+            else:
+                result['confidence'] = 'medium'
+
+            # Store matches
+            result['all_matches'] = [
+                (rid, rname, round(100.0 / (1 + area), 1))
+                for rid, rname, area in matches
+            ]
+
+        return result
+
+    def get_all_service_urls(self, region_id):
+        """
+        Return a flat list of all unique service URLs for a region,
+        including statewide services.
+
+        Returns:
+            list of dict: [{url, name, is_statewide}, ...]
+        """
+        services = self.get_services_for_region(region_id)
+        result = []
+        seen = set()
+        for svc in services['local']:
+            url = svc['url']
+            if url not in seen:
+                seen.add(url)
+                result.append({
+                    'url': url,
+                    'name': svc['name'],
+                    'is_statewide': False
+                })
+        for svc in services['statewide']:
+            url = svc.get('url', '')
+            if url and url not in seen:
+                seen.add(url)
+                result.append({
+                    'url': url,
+                    'name': svc['name'],
+                    'is_statewide': True
+                })
+        return result
+
     def find_layer_by_type(self, region_id, layer_type):
         """
         Find the best service and layer ID for a given data type

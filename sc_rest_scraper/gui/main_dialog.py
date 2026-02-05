@@ -4,8 +4,12 @@ main_dialog.py - GeoGrab Main Window
 Professional tabbed interface for REST service data download.
 
 Tab 1: Quick Download - Auto-detects region, one-click common layers
+       + "Browse All Layers" button to connect and list every layer
+         from the detected region's services (v1-style browsing).
 Tab 2: Custom URL    - Paste any REST URL, browse layers
 Tab 3: My Services   - Persistent saved services with layer selections
+
+Detection now uses canvas-center as primary, with layer-extent fallback.
 
 Launched via: from sc_rest_scraper.gui.main_dialog import launch; launch()
 """
@@ -39,7 +43,7 @@ from sc_rest_scraper.core.safety import SafetyChecker, SafetyConfig
 class GeoGrabDialog(QDialog):
     """Main GeoGrab application window."""
 
-    VERSION = "1.2.0"
+    VERSION = "1.3.0"
 
     def __init__(self):
         super().__init__(iface.mainWindow())
@@ -60,12 +64,13 @@ class GeoGrabDialog(QDialog):
         self._detection_result = None
         self._custom_layers = []
         self._svc_layers = []
+        self._browse_all_visible = False  # Track browse-all panel state
 
         # Build UI
         self._build()
         self.setStyleSheet(DARK_STYLESHEET)
-        self.resize(820, 720)
-        self.setMinimumSize(680, 580)
+        self.resize(860, 760)
+        self.setMinimumSize(700, 600)
 
         # Auto-detect on launch
         self._auto_detect()
@@ -78,16 +83,17 @@ class GeoGrabDialog(QDialog):
         L.setSpacing(6)
         L.setContentsMargins(10, 10, 10, 10)
 
+        # -- Header --
         header = QHBoxLayout()
         title = QLabel("GeoGrab")
         title.setStyleSheet(
-            "font-size: 18pt; font-weight: bold; color: #4fc3f7; "
+            "font-size: 18pt; font-weight: bold; color: #2d5da1; "
             "padding: 4px 0;"
         )
         header.addWidget(title)
         subtitle = QLabel("ArcGIS REST Data Downloader for QGIS")
         subtitle.setStyleSheet(
-            "font-size: 9pt; color: #9e9e9e; padding-top: 10px;"
+            "font-size: 9pt; color: #6b6b6b; padding-top: 10px;"
         )
         header.addWidget(subtitle)
         header.addStretch()
@@ -100,15 +106,17 @@ class GeoGrabDialog(QDialog):
 
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
-        sep.setStyleSheet("color: #5c5c7a;")
+        sep.setStyleSheet("color: #c5bfb3;")
         L.addWidget(sep)
 
+        # -- Tabs --
         self.tabs = QTabWidget()
         self.tabs.addTab(self._build_quick_tab(), "Quick Download")
         self.tabs.addTab(self._build_custom_tab(), "Custom URL")
         self.tabs.addTab(self._build_services_tab(), "My Services")
         L.addWidget(self.tabs)
 
+        # -- Output section --
         out_group = QGroupBox("Output")
         out_lay = QVBoxLayout(out_group)
         h_out = QHBoxLayout()
@@ -143,18 +151,21 @@ class GeoGrabDialog(QDialog):
         out_lay.addLayout(h_opts)
         L.addWidget(out_group)
 
+        # -- Progress --
         self.progress = QProgressBar()
         self.progress.setTextVisible(True)
         self.progress.setFormat("Ready")
         self.progress.setValue(0)
         L.addWidget(self.progress)
 
+        # -- Log --
         self.log_box = QTextEdit()
         self.log_box.setReadOnly(True)
         self.log_box.setMaximumHeight(100)
         self.log_box.setPlaceholderText("Download log...")
         L.addWidget(self.log_box)
 
+        # -- Action buttons --
         h_btn = QHBoxLayout()
         h_btn.addStretch()
         self.btn_download = QPushButton("  Download Selected  ")
@@ -170,18 +181,19 @@ class GeoGrabDialog(QDialog):
         L.addLayout(h_btn)
 
     # -----------------------------------------------------------------
-    # TAB 1: Quick Download
+    # TAB 1: Quick Download (with Browse All Layers)
     # -----------------------------------------------------------------
     def _build_quick_tab(self):
         w = QWidget()
         L = QVBoxLayout(w)
         L.setSpacing(8)
 
+        # -- Detection row --
         det_row = QHBoxLayout()
         det_row.addWidget(QLabel("Detected Region:"))
         self.lbl_region = QLabel("Detecting...")
         self.lbl_region.setStyleSheet(
-            "font-weight: bold; color: #4fc3f7; font-size: 10pt;"
+            "font-weight: bold; color: #2d5da1; font-size: 10pt;"
         )
         det_row.addWidget(self.lbl_region)
         det_row.addStretch()
@@ -198,7 +210,20 @@ class GeoGrabDialog(QDialog):
         det_row.addWidget(self.cbo_region_override)
         L.addLayout(det_row)
 
-        L.addWidget(QLabel("Available Data Layers:"))
+        # -- Quick layers label + Browse All button --
+        quick_hdr = QHBoxLayout()
+        quick_hdr.addWidget(QLabel("Available Data Layers:"))
+        quick_hdr.addStretch()
+        self.btn_browse_all = QPushButton("Browse All Layers...")
+        self.btn_browse_all.setToolTip(
+            "Connect to the detected region's services and list "
+            "ALL available layers (like v1). Requires network."
+        )
+        self.btn_browse_all.clicked.connect(self._toggle_browse_all)
+        quick_hdr.addWidget(self.btn_browse_all)
+        L.addLayout(quick_hdr)
+
+        # -- Quick layers tree (mapped types) --
         self.tree_quick = QTreeWidget()
         self.tree_quick.setHeaderLabels(["Layer", "Source", "Status"])
         self.tree_quick.setAlternatingRowColors(True)
@@ -210,6 +235,48 @@ class GeoGrabDialog(QDialog):
         hdr.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         L.addWidget(self.tree_quick)
 
+        # -- Browse-all panel (hidden by default) --
+        self.browse_all_widget = QWidget()
+        ba_lay = QVBoxLayout(self.browse_all_widget)
+        ba_lay.setContentsMargins(0, 4, 0, 0)
+        ba_lay.setSpacing(4)
+
+        ba_hdr = QHBoxLayout()
+        ba_hdr.addWidget(QLabel("All Layers from Region Services:"))
+        ba_hdr.addStretch()
+
+        # Service selector combo
+        self.cbo_browse_service = QComboBox()
+        self.cbo_browse_service.setMinimumWidth(280)
+        self.cbo_browse_service.setPlaceholderText(
+            "Select a service to browse..."
+        )
+        ba_hdr.addWidget(self.cbo_browse_service)
+
+        self.btn_browse_connect = QPushButton("Connect")
+        self.btn_browse_connect.setFixedWidth(80)
+        self.btn_browse_connect.clicked.connect(self._on_browse_connect)
+        ba_hdr.addWidget(self.btn_browse_connect)
+        ba_lay.addLayout(ba_hdr)
+
+        self.tree_browse_all = QTreeWidget()
+        self.tree_browse_all.setHeaderLabels(
+            ["", "ID", "Layer Name", "Type"]
+        )
+        self.tree_browse_all.setAlternatingRowColors(True)
+        self.tree_browse_all.setRootIsDecorated(False)
+        bdr = self.tree_browse_all.header()
+        bdr.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        bdr.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        bdr.setSectionResizeMode(2, QHeaderView.Stretch)
+        bdr.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        self.tree_browse_all.setMaximumHeight(180)
+        ba_lay.addWidget(self.tree_browse_all)
+
+        self.browse_all_widget.setVisible(False)
+        L.addWidget(self.browse_all_widget)
+
+        # -- Preset row --
         preset_row = QHBoxLayout()
         preset_row.addWidget(QLabel("Presets:"))
         for pid, plbl in [('drainage_study', 'Drainage Study'),
@@ -245,16 +312,13 @@ class GeoGrabDialog(QDialog):
         url_row.addWidget(self.txt_custom_url)
         btn_go = QPushButton("Connect")
         btn_go.setFixedWidth(90)
-        btn_go.setStyleSheet(
-            "background-color: #0288d1; color: white; font-weight: bold;"
-        )
         btn_go.clicked.connect(self._on_custom_connect)
         url_row.addWidget(btn_go)
         L.addLayout(url_row)
 
         self.tree_custom = QTreeWidget()
         self.tree_custom.setHeaderLabels(
-            ["Select", "ID", "Layer Name", "Type"]
+            ["", "ID", "Layer Name", "Type"]
         )
         self.tree_custom.setAlternatingRowColors(True)
         hdr = self.tree_custom.header()
@@ -273,7 +337,7 @@ class GeoGrabDialog(QDialog):
         return w
 
     # -----------------------------------------------------------------
-    # TAB 3: My Services (Enhanced with persistent layer selections)
+    # TAB 3: My Services
     # -----------------------------------------------------------------
     def _build_services_tab(self):
         w = QWidget()
@@ -319,13 +383,13 @@ class GeoGrabDialog(QDialog):
 
         self.lbl_svc_info = QLabel("Select a service to browse layers")
         self.lbl_svc_info.setStyleSheet(
-            "color: #b0b0b0; font-style: italic;"
+            "color: #6b6b6b; font-style: italic;"
         )
         right_L.addWidget(self.lbl_svc_info)
 
         self.tree_svc_layers = QTreeWidget()
         self.tree_svc_layers.setHeaderLabels(
-            ["Select", "ID", "Layer Name", "Type"]
+            ["", "ID", "Layer Name", "Type"]
         )
         self.tree_svc_layers.setAlternatingRowColors(True)
         hdr = self.tree_svc_layers.header()
@@ -346,7 +410,7 @@ class GeoGrabDialog(QDialog):
         h_lyr_btns.addWidget(btn_clr_all)
         h_lyr_btns.addStretch()
         btn_save_sel = QPushButton("Save Selections")
-        btn_save_sel.setStyleSheet("color: #ffa726; font-weight: bold;")
+        btn_save_sel.setStyleSheet("color: #d4880f; font-weight: bold;")
         btn_save_sel.clicked.connect(self._save_svc_layer_selections)
         h_lyr_btns.addWidget(btn_save_sel)
         right_L.addLayout(h_lyr_btns)
@@ -513,13 +577,20 @@ class GeoGrabDialog(QDialog):
         )
 
     # =================================================================
-    # AUTO-DETECT
+    # AUTO-DETECT (canvas-center primary, layer-extent fallback)
     # =================================================================
     def _auto_detect(self):
         try:
-            result = self.detector.detect_region()
+            # Try canvas-center first (better when zoomed in)
+            result = self.detector.detect_region_by_canvas_center()
+
+            # Fallback to layer-extent if canvas-center found nothing
+            if not result['detected']:
+                result = self.detector.detect_region()
+
             self._detection_result = result
 
+            # Populate region override combo
             reg = self.detector._load_registry()
             self.cbo_region_override.blockSignals(True)
             self.cbo_region_override.clear()
@@ -533,23 +604,24 @@ class GeoGrabDialog(QDialog):
                 name = result['region_name']
                 self.lbl_region.setText(name)
                 color_map = {
-                    'high': '#66bb6a', 'medium': '#ffa726',
-                    'low': '#ef5350'
+                    'high': '#3a8a3e', 'medium': '#d4880f',
+                    'low': '#d63b3b'
                 }
                 self.lbl_status.setText(f"  {conf.upper()} confidence  ")
                 self.lbl_status.setStyleSheet(
                     f"background-color: {color_map.get(conf, '#666')}; "
-                    f"color: #1e1e2e; font-weight: bold; "
+                    f"color: #ffffff; font-weight: bold; "
                     f"border-radius: 3px; padding: 4px 10px;"
                 )
                 self._populate_quick_layers(result['region_id'])
+                self._populate_browse_services(result['region_id'])
             else:
                 self.lbl_region.setText(
                     "No layers loaded or outside coverage"
                 )
                 self.lbl_status.setText("  NOT DETECTED  ")
                 self.lbl_status.setStyleSheet(
-                    "background-color: #666; color: #ccc; "
+                    "background-color: #c5bfb3; color: #2d2d2d; "
                     "border-radius: 3px; padding: 4px 10px;"
                 )
         except Exception as ex:
@@ -566,10 +638,11 @@ class GeoGrabDialog(QDialog):
             self.lbl_region.setText(rdata.get('name', rid))
             self.lbl_status.setText("  MANUAL  ")
             self.lbl_status.setStyleSheet(
-                "background-color: #4fc3f7; color: #1e1e2e; "
+                "background-color: #2d5da1; color: #ffffff; "
                 "font-weight: bold; border-radius: 3px; padding: 4px 10px;"
             )
             self._populate_quick_layers(rid)
+            self._populate_browse_services(rid)
 
     def _populate_quick_layers(self, region_id):
         self.tree_quick.clear()
@@ -594,7 +667,7 @@ class GeoGrabDialog(QDialog):
             if match:
                 item.setText(1, match['service_name'])
                 item.setText(2, "Available")
-                item.setForeground(2, QColor('#66bb6a'))
+                item.setForeground(2, QColor('#3a8a3e'))
                 item.setData(0, Qt.UserRole, {
                     'layer_type': ltype,
                     'service_url': match['service_url'],
@@ -605,10 +678,82 @@ class GeoGrabDialog(QDialog):
             else:
                 item.setText(1, "--")
                 item.setText(2, "Not configured")
-                item.setForeground(2, QColor('#9e9e9e'))
+                item.setForeground(2, QColor('#6b6b6b'))
                 item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
 
             self.tree_quick.addTopLevelItem(item)
+
+    def _populate_browse_services(self, region_id):
+        """Populate the Browse All service selector with region services."""
+        self.cbo_browse_service.clear()
+        try:
+            service_list = self.detector.get_all_service_urls(region_id)
+            for svc in service_list:
+                prefix = "[State] " if svc['is_statewide'] else ""
+                label = f"{prefix}{svc['name']}"
+                self.cbo_browse_service.addItem(label, svc['url'])
+        except Exception:
+            pass
+
+    # =================================================================
+    # BROWSE ALL LAYERS (v1-style discovery on Quick tab)
+    # =================================================================
+    def _toggle_browse_all(self):
+        """Show/hide the browse-all panel."""
+        self._browse_all_visible = not self._browse_all_visible
+        self.browse_all_widget.setVisible(self._browse_all_visible)
+        if self._browse_all_visible:
+            self.btn_browse_all.setText("Hide All Layers")
+        else:
+            self.btn_browse_all.setText("Browse All Layers...")
+
+    def _on_browse_connect(self):
+        """Connect to the selected service and list ALL feature layers."""
+        url = self.cbo_browse_service.currentData()
+        if not url:
+            QMessageBox.warning(
+                self, "No Service",
+                "Select a service from the dropdown first."
+            )
+            return
+
+        svc_name = self.cbo_browse_service.currentText()
+        self._log(f"Browsing all layers: {svc_name}")
+        self._log(f"  URL: {url}")
+        self.progress.setFormat("Connecting...")
+        self.progress.setValue(10)
+        QApplication.processEvents()
+
+        try:
+            layers = self.downloader.get_service_layers(url)
+            self.tree_browse_all.clear()
+
+            count = 0
+            for lyr in layers:
+                if lyr['type'] != 'Feature Layer':
+                    continue
+                item = QTreeWidgetItem()
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setCheckState(0, Qt.Unchecked)
+                item.setText(1, str(lyr['id']))
+                item.setText(2, lyr['name'])
+                item.setText(3, lyr['type'])
+                item.setData(0, Qt.UserRole, {
+                    'service_url': url,
+                    'layer_id': lyr['id'],
+                    'layer_name': lyr['name'],
+                })
+                self.tree_browse_all.addTopLevelItem(item)
+                count += 1
+
+            self._log(f"  Found {count} feature layers in {svc_name}")
+            self.progress.setFormat(f"Browse: {count} layers from {svc_name}")
+            self.progress.setValue(100)
+
+        except Exception as ex:
+            self._log(f"  ERROR browsing: {ex}")
+            self.progress.setFormat("Browse failed")
+            QMessageBox.warning(self, "Connection Error", str(ex))
 
     # =================================================================
     # PRESETS
@@ -686,7 +831,6 @@ class GeoGrabDialog(QDialog):
             )
             return
 
-        # Collect all layers (checked state preserved)
         checked_layers = []
         for i in range(self.tree_custom.topLevelItemCount()):
             item = self.tree_custom.topLevelItem(i)
@@ -710,7 +854,6 @@ class GeoGrabDialog(QDialog):
 
         user_data = self._load_user_services()
 
-        # Check for duplicate URL
         for svc in user_data['services']:
             if svc['url'] == url:
                 reply = QMessageBox.question(
@@ -775,7 +918,7 @@ class GeoGrabDialog(QDialog):
 
         self.lbl_svc_info.setText(f"{svc['name']}  |  {svc['url']}")
         self.lbl_svc_info.setStyleSheet(
-            "color: #4fc3f7; font-style: normal; font-weight: bold;"
+            "color: #2d5da1; font-style: normal; font-weight: bold;"
         )
 
         self.tree_svc_layers.clear()
@@ -786,7 +929,7 @@ class GeoGrabDialog(QDialog):
             item.setText(
                 2, "(No layers cached. Click Refresh to connect.)"
             )
-            item.setForeground(2, QColor('#b0b0b0'))
+            item.setForeground(2, QColor('#6b6b6b'))
             self.tree_svc_layers.addTopLevelItem(item)
             return
 
@@ -926,7 +1069,7 @@ class GeoGrabDialog(QDialog):
             self.tree_svc_layers.clear()
             self.lbl_svc_info.setText("Select a service to browse layers")
             self.lbl_svc_info.setStyleSheet(
-                "color: #b0b0b0; font-style: italic;"
+                "color: #6b6b6b; font-style: italic;"
             )
             self._refresh_services_list()
             self._log(f"Deleted: {svc['name']}")
@@ -944,7 +1087,7 @@ class GeoGrabDialog(QDialog):
             )
 
     # =================================================================
-    # DOWNLOAD (supports all 3 tabs)
+    # DOWNLOAD (supports all 3 tabs + browse-all)
     # =================================================================
     def _on_download(self):
         output = self.txt_output.text().strip()
@@ -956,12 +1099,21 @@ class GeoGrabDialog(QDialog):
         active_tab = self.tabs.currentIndex()
 
         if active_tab == 0:
+            # Collect from Quick tree
             for i in range(self.tree_quick.topLevelItemCount()):
                 item = self.tree_quick.topLevelItem(i)
                 if item.checkState(0) == Qt.Checked:
                     data = item.data(0, Qt.UserRole)
                     if data:
                         items_to_download.append(data)
+            # Also collect from Browse All tree if visible
+            if self._browse_all_visible:
+                for i in range(self.tree_browse_all.topLevelItemCount()):
+                    item = self.tree_browse_all.topLevelItem(i)
+                    if item.checkState(0) == Qt.Checked:
+                        data = item.data(0, Qt.UserRole)
+                        if data:
+                            items_to_download.append(data)
         elif active_tab == 1:
             for i in range(self.tree_custom.topLevelItemCount()):
                 item = self.tree_custom.topLevelItem(i)
