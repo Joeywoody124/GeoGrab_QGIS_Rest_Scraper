@@ -1,0 +1,590 @@
+{
+  "_meta": {
+    "version": "1.2.0",
+    "updated": "2026-02-05",
+    "description": "ArcGIS REST service catalog for GeoGrab QGIS tool (SC + NC)",
+    "notes": "Layer IDs may change when services are republished. Verify periodically."
+  },
+  "regions": {
+    "berkeley_county": {
+      "name": "Berkeley County",
+      "fips": "45015",
+      "state": "SC",
+      "bbox_wgs84": [-80.45, 32.90, -79.45, 33.55],
+      "services": [
+        {
+          "id": "bc_desktop",
+          "name": "Berkeley County GIS (Desktop)",
+          "url": "https://gis.berkeleycountysc.gov/arcgis/rest/services/desktop/internet_map/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 1000,
+          "notes": "Primary service. Updated weekly from enterprise GIS.",
+          "known_layers": {
+            "parcels": {"name": "Parcels", "id_hint": "Parcels"},
+            "zoning": {"name": "Zoning", "id_hint": "Zoning"},
+            "roads": {"name": "Street Centerlines", "id_hint": "Street"},
+            "address_points": {"name": "Address Points", "id_hint": "Address"},
+            "municipal_boundaries": {"name": "Municipal Boundaries", "id_hint": "Municipal"},
+            "flood_data": {"name": "FEMA Flood Data", "id_hint": "FEMA"},
+            "contours": {"name": "2ft Contours", "id_hint": "Contour"}
+          }
+        },
+        {
+          "id": "bc_mobile",
+          "name": "Berkeley County GIS (Mobile/Lite)",
+          "url": "https://gis.berkeleycountysc.gov/arcgis/rest/services/mobile/mobile_map/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 1000,
+          "notes": "Lighter service, fewer layers. Good fallback if desktop service is slow."
+        },
+        {
+          "id": "bc_legacy",
+          "name": "Berkeley County GIS (Legacy)",
+          "url": "https://gis.berkeleycountysc.gov/arcgis/rest/services/internet/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 1000,
+          "notes": "Older service endpoint. Fallback option."
+        }
+      ]
+    },
+    "beaufort_county": {
+      "name": "Beaufort County",
+      "fips": "45013",
+      "state": "SC",
+      "bbox_wgs84": [-80.95, 32.03, -80.35, 32.60],
+      "services": [
+        {
+          "id": "bft_parcels",
+          "name": "Beaufort County Parcels",
+          "url": "https://gis.beaufortcountysc.gov/server/rest/services/Parcels/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 5000,
+          "notes": "Primary parcel layer. LiveParcels at layer 0. MaxRecordCount 5000.",
+          "known_layers": {
+            "parcels": {"name": "LiveParcels", "id": 0}
+          }
+        },
+        {
+          "id": "bft_zoning",
+          "name": "Beaufort County Zoning",
+          "url": "https://gis.beaufortcountysc.gov/server/rest/services/Zoning/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 1000,
+          "notes": "Zoning districts plus overlay districts (heritage, airport, fishing village).",
+          "known_layers": {
+            "zoning": {"name": "Zoning", "id": 0}
+          }
+        },
+        {
+          "id": "bft_addresses",
+          "name": "Beaufort County Addresses",
+          "url": "https://gis.beaufortcountysc.gov/server/rest/services/Addresses/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 1000,
+          "notes": "Address point layer.",
+          "known_layers": {
+            "address_points": {"name": "Addresses", "id_hint": "Address"}
+          }
+        },
+        {
+          "id": "bft_roads",
+          "name": "Beaufort County Road Classification",
+          "url": "https://gis.beaufortcountysc.gov/server/rest/services/RoadClass/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 1000,
+          "notes": "Road classification layer.",
+          "known_layers": {
+            "roads": {"name": "RoadClass", "id_hint": "Road"}
+          }
+        },
+        {
+          "id": "bft_contours",
+          "name": "Beaufort County Contours",
+          "url": "https://gis.beaufortcountysc.gov/server/rest/services/Contours/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 1000,
+          "notes": "Elevation contour lines.",
+          "known_layers": {
+            "contours": {"name": "Contours", "id_hint": "Contour"}
+          }
+        },
+        {
+          "id": "bft_buildings",
+          "name": "Beaufort County Building Footprints",
+          "url": "https://gis.beaufortcountysc.gov/server/rest/services/BuildingFootPrints/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 1000,
+          "notes": "Building footprint polygons.",
+          "known_layers": {
+            "building_footprints": {"name": "BuildingFootPrints", "id_hint": "Building"}
+          }
+        },
+        {
+          "id": "bft_flood",
+          "name": "Beaufort County Flood Zones",
+          "url": "https://gis.beaufortcountysc.gov/server/rest/services/FloodZones/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 1000,
+          "notes": "Local flood zone layer. Also available via statewide FEMA NFHL.",
+          "known_layers": {
+            "flood_zones": {"name": "FloodZones", "id_hint": "Flood"}
+          }
+        },
+        {
+          "id": "bft_municipal",
+          "name": "Beaufort County Municipal Boundaries",
+          "url": "https://gis.beaufortcountysc.gov/server/rest/services/Municipal/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 1000,
+          "notes": "Incorporated municipal boundary polygons.",
+          "known_layers": {
+            "municipal_boundaries": {"name": "Municipal", "id_hint": "Municipal"}
+          }
+        },
+        {
+          "id": "bft_stormwater",
+          "name": "Beaufort County Stormwater",
+          "url": "https://gis.beaufortcountysc.gov/server/rest/services/Stormwater/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 1000,
+          "notes": "Stormwater infrastructure: outfalls, sampling, permits, BMPs."
+        },
+        {
+          "id": "bft_wetlands",
+          "name": "Beaufort County Wetlands (NWI)",
+          "url": "https://gis.beaufortcountysc.gov/server/rest/services/Wetlands/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 1000,
+          "notes": "NWI wetlands layer."
+        },
+        {
+          "id": "bft_row",
+          "name": "Beaufort County ROW",
+          "url": "https://gis.beaufortcountysc.gov/server/rest/services/ROW/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 1000,
+          "notes": "Right-of-way polygons."
+        },
+        {
+          "id": "bft_subdivisions",
+          "name": "Beaufort County Subdivisions",
+          "url": "https://gis.beaufortcountysc.gov/server/rest/services/Subdivisions/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 1000,
+          "notes": "Subdivision boundary polygons."
+        }
+      ]
+    },
+    "charleston_county": {
+      "name": "Charleston County",
+      "fips": "45019",
+      "state": "SC",
+      "bbox_wgs84": [-80.52, 32.49, -79.55, 33.08],
+      "services": [
+        {
+          "id": "cc_parcel_search",
+          "name": "Charleston County Parcel Search",
+          "url": "https://gisccapps.charlestoncounty.org/arcgis/rest/services/GIS_VIEWER/Parcel_Search/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 1000,
+          "notes": "Primary parcel viewer. Sometimes goes offline.",
+          "known_layers": {
+            "parcels": {"name": "Parcels", "id_hint": "Parcels", "id": 4},
+            "address_points": {"name": "Address Points", "id_hint": "Address", "id": 1},
+            "roads": {"name": "Streets", "id_hint": "Streets", "id": 3},
+            "building_footprints": {"name": "Building Footprints", "id_hint": "Building", "id": 6}
+          }
+        },
+        {
+          "id": "cc_public_search",
+          "name": "Charleston County Public Search",
+          "url": "https://gisccapps.charlestoncounty.org/arcgis/rest/services/GIS_VIEWER/Public_Search/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 1000,
+          "notes": "Alternate parcel viewer with assessor-maintained parcels.",
+          "known_layers": {
+            "parcels": {"name": "Parcels (Assessor Maintained)", "id_hint": "Parcels", "id": 4}
+          }
+        },
+        {
+          "id": "cc_city_chs",
+          "name": "City of Charleston",
+          "url": "https://gis.charleston-sc.gov/arcgis/rest/services",
+          "type": "ServiceDirectory",
+          "notes": "City of Charleston services. Does NOT include parcels (county-level only)."
+        }
+      ]
+    },
+    "dorchester_county": {
+      "name": "Dorchester County",
+      "fips": "45035",
+      "state": "SC",
+      "bbox_wgs84": [-80.79, 32.83, -80.07, 33.22],
+      "services": [
+        {
+          "id": "dc_parcels",
+          "name": "Dorchester County Parcels",
+          "url": "https://gisportal.dorchestercounty.net/hosting/rest/services/General_Data/Parcels_Public/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 2000,
+          "notes": "Parcels with basic assessor CAMA data.",
+          "known_layers": {
+            "parcels": {"name": "Parcel_PUBLIC", "id_hint": "Parcel", "id": 0}
+          }
+        },
+        {
+          "id": "dc_county_lands",
+          "name": "Dorchester County Lands",
+          "url": "https://gisportal.dorchestercounty.net/hosting/rest/services/General_Data/County_Lands_Pub/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "max_record_count": 2000,
+          "notes": "County-owned lands with assessor data."
+        },
+        {
+          "id": "dc_water",
+          "name": "Dorchester County Water/Sewer",
+          "url": "https://gisservices.dorchestercounty.net/arcgis/rest/services/Water/UtilitiesExtent_SP/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "notes": "Water and sewer service areas and infrastructure."
+        }
+      ]
+    },
+    "mount_pleasant": {
+      "name": "Town of Mount Pleasant",
+      "fips": "45019",
+      "state": "SC",
+      "bbox_wgs84": [-79.90, 32.76, -79.72, 32.90],
+      "services": [
+        {
+          "id": "mp_gis",
+          "name": "Mount Pleasant GIS",
+          "url": "https://maps.tompsc.com/arcgis/rest/services",
+          "type": "ServiceDirectory",
+          "notes": "Municipal GIS services including zoning, flood zones, and planning data."
+        }
+      ]
+    },
+    "georgetown_county": {
+      "name": "Georgetown County",
+      "fips": "45043",
+      "state": "SC",
+      "bbox_wgs84": [-79.70, 33.10, -79.05, 33.75],
+      "services": [
+        {
+          "id": "gc_energov",
+          "name": "Georgetown County GIS (EnerGov)",
+          "url": "https://gis1.georgetowncountysc.org/portal/rest/services/GCGIS_Energov/MapServer",
+          "type": "MapServer",
+          "native_sr": 3361,
+          "max_record_count": 5000,
+          "notes": "Primary parcel and planning service. EPSG:3361. MaxRecordCount 5000.",
+          "known_layers": {
+            "parcels": {"name": "PARCELATTRIBUTES", "id": 6}
+          }
+        },
+        {
+          "id": "gc_aerial",
+          "name": "Georgetown County Aerial 2022",
+          "url": "https://gis1.georgetowncountysc.org/portal/rest/services/GCGIS_2022_Aerial/MapServer",
+          "type": "MapServer",
+          "native_sr": 2273,
+          "notes": "2022 aerial imagery. EPSG:2273."
+        }
+      ]
+    },
+    "bluffton": {
+      "name": "Town of Bluffton",
+      "fips": "45013",
+      "state": "SC",
+      "bbox_wgs84": [-80.95, 32.18, -80.75, 32.30],
+      "services": [
+        {
+          "id": "blf_zoning",
+          "name": "Bluffton Zoning Districts",
+          "url": "https://services2.arcgis.com/emqdvAOVfTSmahz0/arcgis/rest/services/Bluffton_Zoning_Districts/FeatureServer",
+          "type": "FeatureServer",
+          "notes": "Town zoning district polygons.",
+          "known_layers": {
+            "zoning": {"name": "Bluffton_Zoning_Districts", "id": 0}
+          }
+        },
+        {
+          "id": "blf_contours",
+          "name": "Bluffton Contours",
+          "url": "https://services2.arcgis.com/emqdvAOVfTSmahz0/arcgis/rest/services/Contours/FeatureServer",
+          "type": "FeatureServer",
+          "notes": "Elevation contour lines.",
+          "known_layers": {
+            "contours": {"name": "Contours", "id": 0}
+          }
+        },
+        {
+          "id": "blf_boundaries",
+          "name": "Bluffton Town Boundaries",
+          "url": "https://services2.arcgis.com/emqdvAOVfTSmahz0/arcgis/rest/services/County_and_Town_Boundaries/FeatureServer",
+          "type": "FeatureServer",
+          "notes": "County and town boundary polygons.",
+          "known_layers": {
+            "municipal_boundaries": {"name": "County_and_Town_Boundaries", "id": 0}
+          }
+        },
+        {
+          "id": "blf_flood",
+          "name": "Bluffton FEMA Flood Zones (Old)",
+          "url": "https://services2.arcgis.com/emqdvAOVfTSmahz0/arcgis/rest/services/Old_FEMA_Flood_Zone/FeatureServer",
+          "type": "FeatureServer",
+          "notes": "Older FEMA flood zone data. Check date vs current NFHL.",
+          "known_layers": {
+            "flood_zones": {"name": "Old_FEMA_Flood_Zone", "id": 0}
+          }
+        },
+        {
+          "id": "blf_wetlands",
+          "name": "Bluffton NWI Wetlands",
+          "url": "https://services2.arcgis.com/emqdvAOVfTSmahz0/arcgis/rest/services/National_Wetlands_Inventory/FeatureServer",
+          "type": "FeatureServer",
+          "notes": "National Wetlands Inventory."
+        },
+        {
+          "id": "blf_land_use",
+          "name": "Bluffton Future Land Use",
+          "url": "https://services2.arcgis.com/emqdvAOVfTSmahz0/arcgis/rest/services/Future_Land_Use/FeatureServer",
+          "type": "FeatureServer",
+          "notes": "Future land use plan."
+        },
+        {
+          "id": "blf_storm_surge",
+          "name": "Bluffton Hurricane Storm Surge",
+          "url": "https://services2.arcgis.com/emqdvAOVfTSmahz0/arcgis/rest/services/Hurricane_Storm_Surge/FeatureServer",
+          "type": "FeatureServer",
+          "notes": "Hurricane storm surge zones."
+        },
+        {
+          "id": "blf_annexations",
+          "name": "Bluffton Annexations",
+          "url": "https://services2.arcgis.com/emqdvAOVfTSmahz0/arcgis/rest/services/Annexations/FeatureServer",
+          "type": "FeatureServer",
+          "notes": "Annexation boundary polygons."
+        },
+        {
+          "id": "blf_pud",
+          "name": "Bluffton Planned Unit Developments",
+          "url": "https://services2.arcgis.com/emqdvAOVfTSmahz0/arcgis/rest/services/Planned_Unit_Development/FeatureServer",
+          "type": "FeatureServer",
+          "notes": "PUD boundary polygons."
+        },
+        {
+          "id": "blf_directory",
+          "name": "Bluffton Full Service Directory",
+          "url": "https://services2.arcgis.com/emqdvAOVfTSmahz0/arcgis/rest/services",
+          "type": "ServiceDirectory",
+          "notes": "Full ArcGIS Online directory. 60+ FeatureServer datasets. Browse via Custom URL tab."
+        }
+      ]
+    },
+    "jasper_county": {
+      "name": "Jasper County",
+      "fips": "45053",
+      "state": "SC",
+      "bbox_wgs84": [-81.35, 32.05, -80.80, 32.60],
+      "services": [
+        {
+          "id": "jp_qpublic",
+          "name": "Jasper County (qPublic/Schneider)",
+          "url": "https://qpublic.schneidercorp.com/Application.aspx?AppID=921",
+          "type": "WebApp",
+          "notes": "No direct REST endpoint. Uses qPublic web app. Parcels available via ArcGIS Hub."
+        }
+      ]
+    },
+    "north_charleston": {
+      "name": "City of North Charleston",
+      "fips": "45019",
+      "state": "SC",
+      "bbox_wgs84": [-80.15, 32.82, -79.92, 33.00],
+      "services": [
+        {
+          "id": "nchs_portal",
+          "name": "North Charleston GIS Portal",
+          "url": "https://arc.northcharleston.org/portal",
+          "type": "Portal",
+          "notes": "ArcGIS Enterprise Portal. Zoning available via Charleston County Public_Works_Viewer."
+        }
+      ]
+    },
+    "mcdowell_county_nc": {
+      "name": "McDowell County NC",
+      "fips": "37111",
+      "state": "NC",
+      "bbox_wgs84": [-82.20, 35.48, -81.80, 35.85],
+      "services": [
+        {
+          "id": "mcd_webgis",
+          "name": "McDowell County (WebGIS)",
+          "url": "https://www.webgis.net/arcgis/rest/services/NC/McDowell/MapServer",
+          "type": "MapServer",
+          "native_sr": 2264,
+          "max_record_count": 1000,
+          "notes": "Hosted by Hurt and Proffitt. EPSG:2264 (NC State Plane NAD83 ft). Scale-dependent layers.",
+          "known_layers": {
+            "address_points": {"name": "Addresses", "id": 0},
+            "contours": {"name": "Contours", "id": 3},
+            "roads": {"name": "Centerlines", "id": 4},
+            "parcels": {"name": "Parcel_Lines", "id": 6},
+            "municipal_boundaries": {"name": "City Limits - All Scales", "id": 7}
+          }
+        }
+      ]
+    },
+    "buncombe_county_nc": {
+      "name": "Buncombe County NC",
+      "fips": "37021",
+      "state": "NC",
+      "bbox_wgs84": [-82.75, 35.40, -82.25, 35.80],
+      "services": [
+        {
+          "id": "bun_bcmap",
+          "name": "Buncombe County GIS (bcmap_vt)",
+          "url": "https://gis.buncombecounty.org/arcgis/rest/services/bcmap_vt/MapServer",
+          "type": "MapServer",
+          "native_sr": 3857,
+          "max_record_count": 2000,
+          "notes": "Main map service. 65+ layers. Native Web Mercator but NC SP 2264 data. Updated daily.",
+          "known_layers": {
+            "parcels": {"name": "Property", "id": 0},
+            "roads": {"name": "Street Centerline", "id": 1},
+            "address_points": {"name": "Address", "id": 2}
+          }
+        }
+      ]
+    }
+  },
+  "statewide": [
+    {
+      "id": "fema_nfhl",
+      "name": "FEMA National Flood Hazard Layer (NFHL)",
+      "url": "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer",
+      "type": "MapServer",
+      "category": "flood",
+      "notes": "Current effective FIRM data. TLS 1.2 required. Scale-dependent layers.",
+      "known_layers": {
+        "flood_zones": {"name": "S_Fld_Haz_Ar", "id_hint": "S_Fld_Haz_Ar", "id": 28},
+        "flood_base_elev": {"name": "S_Base_Flood_Ln", "id_hint": "Base_Flood"},
+        "cross_sections": {"name": "S_XS", "id_hint": "S_XS"},
+        "firm_panels": {"name": "S_FIRM_Pan", "id_hint": "FIRM_Pan"}
+      }
+    },
+    {
+      "id": "scdot",
+      "name": "SC Dept of Transportation",
+      "url": "https://services1.arcgis.com/VaY7cY9pvUYUP1Lf/arcgis/rest/services",
+      "type": "ServiceDirectory",
+      "category": "transportation",
+      "notes": "ArcGIS Online FeatureServers. Hundreds of datasets (traffic counts, bridges, road network, pavement). Browse via Custom URL tab."
+    },
+    {
+      "id": "scgic",
+      "name": "SC Geographic Information Council",
+      "url": "http://cowen.gis.sc.gov:6080/arcgis/rest/services",
+      "type": "ServiceDirectory",
+      "category": "general",
+      "notes": "WARNING: Uses HTTP not HTTPS. Statewide datasets."
+    },
+    {
+      "id": "scdnr",
+      "name": "SC Dept of Natural Resources",
+      "url": "https://services.arcgis.com/acgZYxoN5Oj8pDLa/arcgis/rest/services",
+      "type": "ServiceDirectory",
+      "category": "environment",
+      "notes": "ArcGIS Online FeatureServers. Wildlife, waterways, public lands. Browse via Custom URL tab."
+    },
+    {
+      "id": "scdnr_hub",
+      "name": "SC DNR Open Data Hub",
+      "url": "https://data-scdnr.opendata.arcgis.com/",
+      "type": "OpenDataHub",
+      "category": "environment",
+      "notes": "Web portal for downloading shapefiles and hosted feature layers."
+    },
+    {
+      "id": "scdhec",
+      "name": "SC DHEC / SCDES",
+      "url": "https://gis.dhec.sc.gov/arcgis/rest/services",
+      "type": "ServiceDirectory",
+      "category": "environmental_health",
+      "notes": "Environmental and health data. Server may block direct REST browsing (403). Try Hub: https://sc-department-of-health-and-environmental-control-gis-sc-dhec.hub.arcgis.com/"
+    },
+    {
+      "id": "nc_onemap",
+      "name": "NC OneMap",
+      "url": "https://services.nconemap.gov/secure/rest/services",
+      "type": "ServiceDirectory",
+      "category": "general",
+      "notes": "Statewide NC data. URL path includes 'secure', may require NCDIT credentials. Test connectivity before relying on."
+    },
+    {
+      "id": "usgs_govunits",
+      "name": "USGS Government Units",
+      "url": "https://carto.nationalmap.gov/arcgis/rest/services/govunits/MapServer",
+      "type": "MapServer",
+      "category": "boundaries",
+      "notes": "County boundaries, incorporated places, federal lands."
+    },
+    {
+      "id": "usgs_nhd",
+      "name": "USGS National Hydrography Dataset",
+      "url": "https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer",
+      "type": "MapServer",
+      "category": "hydrology",
+      "notes": "Streams, rivers, water bodies, watersheds."
+    },
+    {
+      "id": "usgs_3dep",
+      "name": "USGS 3DEP Elevation",
+      "url": "https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer",
+      "type": "ImageServer",
+      "category": "elevation",
+      "notes": "National elevation data. Use for contour generation or hillshade."
+    }
+  ],
+  "engineering_presets": {
+    "drainage_study": {
+      "name": "Drainage Study Base Data",
+      "description": "Common layers needed for drainage analysis projects",
+      "layers": ["parcels", "flood_zones", "roads", "contours"],
+      "icon": "water"
+    },
+    "site_assessment": {
+      "name": "Site Assessment",
+      "description": "Layers for general site condition documentation",
+      "layers": ["parcels", "zoning", "roads", "flood_zones", "building_footprints"],
+      "icon": "clipboard"
+    },
+    "infrastructure_inventory": {
+      "name": "Infrastructure Inventory",
+      "description": "Layers for asset management and condition mapping",
+      "layers": ["parcels", "roads", "address_points", "municipal_boundaries"],
+      "icon": "wrench"
+    }
+  }
+}

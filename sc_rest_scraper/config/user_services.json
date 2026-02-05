@@ -1,0 +1,8 @@
+{
+  "_meta": {
+    "version": "2.0.0",
+    "description": "User-saved service bookmarks with persistent layer selections. This file grows as you save custom services and their layer preferences.",
+    "notes": "Edited by GeoGrab. Manual edits are fine but keep valid JSON."
+  },
+  "services": []
+}

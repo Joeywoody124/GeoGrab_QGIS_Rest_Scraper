@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# QGIS temp files
+*.qgz~
+*.qgs~
+
+# Test outputs (keep the v1_Test folder structure but ignore large data)
+v1_Test/*.gpkg
+
+# User-specific config (user bookmarks will differ per machine)
+# NOTE: sc_services.json IS tracked (it's the shared registry)
+# user_services.json is tracked as an empty template
+
+# Handoff document (internal dev notes, not for public repo)
+docs/HANDOFF.md
+
+# Distribution
+dist/
+build/
+*.egg-info/
