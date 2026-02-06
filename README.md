@@ -5,7 +5,7 @@
 ![QGIS](https://img.shields.io/badge/QGIS-3.40+-3aaa35.svg?logo=qgis&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.9+-3776AB.svg?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Version](https://img.shields.io/badge/version-1.2.0-0288d1.svg)
+![Version](https://img.shields.io/badge/version-1.4.0-0288d1.svg)
 
 ---
 
@@ -24,8 +24,8 @@ It was built for municipal and county engineering consulting in the SE United St
 ```
 Your QGIS Project                    GeoGrab
    |                                    |
-   |-- Loaded layers (CRS + extent) --> Auto-detect region
-   |                                    |
+   |-- Canvas center + CRS ----------> Auto-detect region
+   |   (fallback: layer extents)        |
    |                                    |--> Match to service registry
    |                                    |     (sc_services.json)
    |                                    |
@@ -36,14 +36,14 @@ Your QGIS Project                    GeoGrab
    |   <-- Add to map canvas            |     with spatial filtering
 ```
 
-The detection system checks CRS codes (SC/NC State Plane families) and computes bounding box overlap between your project extent and each region in the registry. High confidence means your CRS matches the region's state and your extent falls squarely within it.
+Detection uses canvas center point as the primary method (best for zoomed-in views), with layer-extent bounding box overlap as a fallback. CRS analysis checks for SC/NC State Plane families as a confidence booster.
 
 ---
 
 ## Features
 
 **Auto-Detection**
-- Identifies your working region from loaded layer CRS and spatial extent
+- Canvas-center detection (primary) with layer-extent fallback
 - Supports SC State Plane (EPSG:2273, 3361) and NC State Plane (EPSG:2264, 3358, 6543) families
 - Confidence scoring: HIGH / MEDIUM / LOW with manual override dropdown
 
@@ -51,6 +51,12 @@ The detection system checks CRS codes (SC/NC State Plane families) and computes 
 - **Quick Download**: Pre-configured layers for your detected region with engineering presets (Drainage Study, Site Assessment, Infrastructure Inventory)
 - **Custom URL**: Paste any ArcGIS REST MapServer or FeatureServer URL, browse layers, check what you want
 - **My Services**: Persistent bookmarks with saved layer selections that survive between sessions
+
+**Browse All Layers with Directory Crawling**
+- Expandable panel on the Quick Download tab lists every service for your region
+- Direct MapServer/FeatureServer entries connect to list feature layers
+- ServiceDirectory entries (like SCDOT with hundreds of datasets) auto-crawl to show child services in a secondary dropdown, then connect to whichever one you pick
+- Non-browsable service types (WebApp, Portal, OpenDataHub, ImageServer) are filtered out automatically
 
 **Download Engine**
 - OID-based pagination handles datasets of any size without hitting MaxRecordCount limits
@@ -65,6 +71,10 @@ The detection system checks CRS codes (SC/NC State Plane families) and computes 
 - Density-aware thresholds tighten for parcels, contours, and other heavy layers
 - Configurable warning (10K features) and hard block (100K features) limits
 - No-spatial-filter protection blocks full-service dumps
+
+**Sketch Theme**
+- Light, warm, paper-like interface with pencil-black text and blue accents
+- Medium and Dark themes available in `styles.py`
 
 ---
 
@@ -94,6 +104,8 @@ exec(open(r'E:\path\to\GeoGrab_QGIS_Rest_Scraper\launcher.py', encoding='utf-8')
 
 GeoGrab opens, detects your region, and populates available layers. Check what you need, pick an output path, and hit **Download Selected**.
 
+The launcher automatically cleans `__pycache__` folders on each run, so code changes take effect immediately without manual cleanup.
+
 ---
 
 ## Pre-Configured Service Registry
@@ -102,13 +114,13 @@ GeoGrab opens, detects your region, and populates available layers. Check what y
 
 | Region | State | Quick Download Layers | Service Type |
 |--------|-------|----------------------|--------------|
-| Berkeley County | SC | Parcels, Zoning, Roads, Contours, Flood, Addresses, Boundaries | MapServer (bundled) |
+| Berkeley County | SC | Parcels, Zoning, Roads, Contours, Flood Zones, Addresses, Boundaries | MapServer (bundled, hardcoded IDs) |
 | Beaufort County | SC | All 8 layer types mapped | MapServer (separate per dataset) |
 | Charleston County | SC | Parcels, Addresses, Roads, Buildings | MapServer |
 | Dorchester County | SC | Parcels | MapServer |
 | Georgetown County | SC | Parcels (EPSG:3361 native) | MapServer (Portal) |
 | Town of Bluffton | SC | Zoning, Contours, Boundaries, Flood | FeatureServer (ArcGIS Online, 60+ datasets) |
-| Mount Pleasant | SC | Browse via Custom URL | ServiceDirectory |
+| Mount Pleasant | SC | Browse via directory crawl | ServiceDirectory |
 | Jasper County | SC | No REST endpoint | qPublic web app |
 | North Charleston | SC | Uses Charleston County services | ArcGIS Enterprise Portal |
 | McDowell County | NC | Addresses, Contours, Roads, Parcels, City Limits | MapServer (WebGIS) |
@@ -116,18 +128,18 @@ GeoGrab opens, detects your region, and populates available layers. Check what y
 
 ### Statewide and Federal Services (11)
 
-| Service | Coverage | Category |
-|---------|----------|----------|
-| FEMA NFHL | National | Flood zones, FIRM panels, BFEs, cross sections |
-| SCDOT | SC | Roads, bridges, traffic, pavement (ArcGIS Online) |
-| SCGIC | SC | General statewide data |
-| SCDNR | SC | Wildlife, waterways, public lands |
-| SCDNR Open Data Hub | SC | Downloadable shapefiles and features |
-| SCDHEC / SCDES | SC | Environmental and health data |
-| NC OneMap | NC | Statewide NC data |
-| USGS Government Units | National | County and municipal boundaries |
-| USGS NHD | National | Hydrography and watersheds |
-| USGS 3DEP | National | Elevation data |
+| Service | Coverage | Type | Category |
+|---------|----------|------|----------|
+| FEMA NFHL | National | MapServer | Flood zones, FIRM panels, BFEs, cross sections |
+| SCDOT | SC | ServiceDirectory | Roads, bridges, traffic, pavement (crawlable) |
+| SCGIC | SC | ServiceDirectory | General statewide data (crawlable) |
+| SCDNR | SC | ServiceDirectory | Wildlife, waterways, public lands (crawlable) |
+| SCDNR Open Data Hub | SC | OpenDataHub | Downloadable shapefiles and features |
+| SCDHEC / SCDES | SC | ServiceDirectory | Environmental and health data (may 403) |
+| NC OneMap | NC | ServiceDirectory | Statewide NC data (may need auth) |
+| USGS Government Units | National | MapServer | County and municipal boundaries |
+| USGS NHD | National | MapServer | Hydrography and watersheds |
+| USGS 3DEP | National | ImageServer | Elevation data |
 
 ---
 
@@ -171,14 +183,14 @@ GeoGrab_QGIS_Rest_Scraper/
     LICENSE
     .gitignore
     sc_rest_scraper/
-        __init__.py                      # Package version (1.2.0)
+        __init__.py                      # Package version (1.4.0)
         core/
             downloader.py                # REST engine: fetch, paginate, convert, export
-            location_detect.py           # Auto-detect region from CRS + extent
+            location_detect.py           # Auto-detect region from canvas + CRS
             safety.py                    # Pre-flight download guardrails
         gui/
-            main_dialog.py               # Three-tab GUI with download integration
-            styles.py                    # Dark/medium theme stylesheets
+            main_dialog.py               # Three-tab GUI with browse-all + directory crawl
+            styles.py                    # Sketch/Medium/Dark theme stylesheets
         config/
             sc_services.json             # Service registry (11 regions + statewide)
             user_services.json           # User bookmarks (per-machine, git-ignored)
@@ -195,7 +207,8 @@ Edit `sc_services.json` following the pattern of existing entries. Key fields:
 
 - **`bbox_wgs84`**: `[xmin, ymin, xmax, ymax]` in WGS84 for auto-detection
 - **`known_layers`**: Maps standard type keys (`parcels`, `zoning`, `roads`, etc.) to service-specific layer names and IDs
-- **`id`**: Hard-coded layer ID (preferred) or use `id_hint` for substring matching
+- **`id`**: Hard-coded layer ID (preferred). Use `id_hint` for substring matching only as a fallback.
+- **`type`**: Service type determines how GeoGrab handles the entry: `MapServer`/`FeatureServer` (direct browse), `ServiceDirectory` (directory crawl), or `WebApp`/`Portal`/`OpenDataHub`/`ImageServer` (filtered out of browse)
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full walkthrough.
 
@@ -213,16 +226,20 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full walkthrough.
 ## Roadmap
 
 - [x] Auto-detect region from loaded layers
+- [x] Canvas-center detection (primary) with layer-extent fallback
 - [x] OID-paginated REST download engine
 - [x] Download safety guardrails
 - [x] GeoPackage multi-layer append
 - [x] Persistent service bookmarks with layer selections
 - [x] SC + NC State Plane CRS detection
 - [x] Engineering presets (Drainage Study, Site Assessment, Infrastructure)
+- [x] Browse All Layers panel with service directory crawling
+- [x] Sketch (light) theme with Medium and Dark options
+- [x] Auto pycache cleanup in launcher
 - [ ] Service health monitoring with color-coded status
 - [ ] Download history log for deliverable documentation
 - [ ] Settings panel (default CRS, batch size, proxy, SSL)
-- [ ] Light/dark theme toggle
+- [ ] Theme toggle in GUI
 - [ ] QGIS Plugin Manager packaging
 
 ---

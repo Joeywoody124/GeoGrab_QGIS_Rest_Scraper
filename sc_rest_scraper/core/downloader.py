@@ -108,6 +108,50 @@ class RESTDownloader:
     # -----------------------------------------------------------------
     # Service Discovery
     # -----------------------------------------------------------------
+    def get_directory_services(self, directory_url):
+        """
+        Query a ServiceDirectory URL to list its child services.
+
+        ArcGIS Server service directories return a JSON response with
+        a "services" array, each having "name" and "type" fields.
+        Child service URLs are constructed as:
+            {directory_url}/{service_name}/{service_type}
+
+        Args:
+            directory_url: Root URL of the service directory
+                (e.g., https://services1.arcgis.com/.../rest/services)
+
+        Returns:
+            List of dicts: [{name, url, type, display_name}, ...]
+            Only MapServer and FeatureServer entries are returned.
+        """
+        data = self.fetch_json(directory_url.rstrip('/'), {'f': 'json'})
+        results = []
+        browsable = {'MapServer', 'FeatureServer'}
+
+        for svc in data.get('services', []):
+            svc_name = svc.get('name', '')
+            svc_type = svc.get('type', '')
+            if svc_type not in browsable:
+                continue
+
+            # Build the child service URL
+            child_url = f"{directory_url.rstrip('/')}/{svc_name}/{svc_type}"
+
+            # Display name: strip folder prefix if present
+            display = svc_name.split('/')[-1] if '/' in svc_name else svc_name
+
+            results.append({
+                'name': svc_name,
+                'display_name': display,
+                'url': child_url,
+                'type': svc_type,
+            })
+
+        # Sort alphabetically by display name
+        results.sort(key=lambda x: x['display_name'].lower())
+        return results
+
     def get_service_layers(self, service_url):
         """
         Query a MapServer/FeatureServer root to list available layers.

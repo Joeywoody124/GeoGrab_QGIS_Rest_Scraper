@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "version": "1.2.0",
-    "updated": "2026-02-05",
+    "version": "1.4.0",
+    "updated": "2026-02-06",
     "description": "ArcGIS REST service catalog for GeoGrab QGIS tool (SC + NC)",
     "notes": "Layer IDs may change when services are republished. Verify periodically."
   },
@@ -21,13 +21,13 @@
           "max_record_count": 1000,
           "notes": "Primary service. Updated weekly from enterprise GIS.",
           "known_layers": {
-            "parcels": {"name": "Parcels", "id_hint": "Parcels"},
-            "zoning": {"name": "Zoning", "id_hint": "Zoning"},
-            "roads": {"name": "Street Centerlines", "id_hint": "Street"},
-            "address_points": {"name": "Address Points", "id_hint": "Address"},
-            "municipal_boundaries": {"name": "Municipal Boundaries", "id_hint": "Municipal"},
-            "flood_data": {"name": "FEMA Flood Data", "id_hint": "FEMA"},
-            "contours": {"name": "2ft Contours", "id_hint": "Contour"}
+            "parcels": {"name": "Parcel Lines", "id": 4},
+            "zoning": {"name": "Zoning", "id": 33},
+            "roads": {"name": "Streets (Short Name)", "id": 2},
+            "address_points": {"name": "Address Points", "id": 0},
+            "municipal_boundaries": {"name": "Cities", "id": 27},
+            "flood_zones": {"name": "Berkeley Flood Zones", "id": 98},
+            "contours": {"name": "Berkeley County 2ft Contours (2017)", "id": 87}
           }
         },
         {

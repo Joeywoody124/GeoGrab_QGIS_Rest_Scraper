@@ -3,6 +3,40 @@
 All notable changes to GeoGrab are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.4.0] - 2026-02-06
+
+### Added
+- **Service directory crawling**: ServiceDirectory entries (SCDOT, SCGIC, SCDNR, SCDHEC, NC OneMap, Bluffton directory, Mt. Pleasant, City of Charleston) now auto-crawl when selected in the Browse All panel. A secondary "Child Service" dropdown populates with all MapServer/FeatureServer children from the directory, letting users pick which specific service to browse layers from.
+- **`get_directory_services()` method** in `downloader.py`: Queries a ServiceDirectory root URL, filters to browsable child services, constructs full URLs, and returns them sorted alphabetically.
+- **Non-browsable type filtering**: Browse All dropdown now excludes WebApp, Portal, OpenDataHub, and ImageServer entries. Only MapServer, FeatureServer, and ServiceDirectory entries appear.
+- **Service type constants** on `LocationDetector`: `BROWSABLE_TYPES`, `DIRECTORY_TYPES`, `NON_BROWSABLE_TYPES` for clear classification.
+- **`__pycache__` auto-cleanup** in `launcher.py`: Recursively deletes all `__pycache__` folders under `sc_rest_scraper/` before module reimport, eliminating stale bytecode issues after code edits.
+
+### Fixed
+- **Berkeley County layer IDs hardcoded**: All 7 known_layers now use exact `"id"` fields from the live MapServer instead of fuzzy `"id_hint"` substring matching. Fixes download failures for layers where the hint didn't match the actual layer name (e.g., "Municipal" hint vs. "Cities" actual name at ID 27).
+- **Berkeley County `flood_data` key renamed to `flood_zones`**: Matches the standard layer type key used by all other regions and by the FEMA NFHL statewide entry.
+- **Browse All "0 feature layers" bug**: ServiceDirectory URLs (SCDOT, SCGIC, etc.) no longer appear as direct-connect entries that fail with 0 layers. They're now handled through the directory crawling system.
+
+### Changed
+- `get_all_service_urls()` return dicts now include `svc_type` field (MapServer, FeatureServer, or ServiceDirectory)
+- Browse combo item data changed from plain URL string to `{url, svc_type}` dict
+- ServiceDirectory entries in the Browse All dropdown are labeled with `[Directory]` prefix
+- Service registry `sc_services.json` version bumped to 1.4.0
+- Version bumped to 1.4.0
+
+## [1.3.0] - 2026-02-06
+
+### Added
+- **Sketch (light) theme**: Warm paper backgrounds (#fdfbf7), pencil-black text (#2d2d2d), blue ballpoint accent (#2d5da1). Professional, approachable look suitable for client-facing demos.
+- **Canvas-center detection**: New primary detection method (`detect_region_by_canvas_center()`) that checks which region bboxes contain the map canvas center point. Better for zoomed-in views where layer extents span much larger areas.
+- **"Browse All Layers" panel** on Quick Download tab: Toggle panel that lists all services for the detected region, connect to any service, and browse/check individual feature layers for download.
+- **`get_all_service_urls()` method**: Returns flat list of all unique service URLs for a region including statewide services.
+
+### Changed
+- Detection chain: canvas-center first (HIGH confidence with State Plane CRS), layer-extent fallback
+- Default theme changed from Dark to Sketch (light). Medium and Dark themes preserved in `styles.py`.
+- Existing `DARK_STYLESHEET` export now points to Sketch theme for backward compatibility.
+
 ## [1.2.0] - 2026-02-05
 
 ### Added

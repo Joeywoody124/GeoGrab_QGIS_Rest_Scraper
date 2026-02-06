@@ -1,15 +1,18 @@
 """
-main_dialog.py - GeoGrab Main Window
-======================================
+main_dialog.py - GeoGrab Main Window (v1.4.0)
+===============================================
 Professional tabbed interface for REST service data download.
 
 Tab 1: Quick Download - Auto-detects region, one-click common layers
-       + "Browse All Layers" button to connect and list every layer
-         from the detected region's services (v1-style browsing).
+       + "Browse All Layers" panel with service directory crawling.
+         ServiceDirectory entries auto-crawl to list child services
+         in a secondary dropdown. Direct MapServer/FeatureServer
+         entries connect straight to the layer list.
 Tab 2: Custom URL    - Paste any REST URL, browse layers
 Tab 3: My Services   - Persistent saved services with layer selections
 
-Detection now uses canvas-center as primary, with layer-extent fallback.
+Detection uses canvas-center as primary, with layer-extent fallback.
+Non-browsable service types (WebApp, Portal, etc.) are filtered out.
 
 Launched via: from sc_rest_scraper.gui.main_dialog import launch; launch()
 """
@@ -43,7 +46,7 @@ from sc_rest_scraper.core.safety import SafetyChecker, SafetyConfig
 class GeoGrabDialog(QDialog):
     """Main GeoGrab application window."""
 
-    VERSION = "1.3.0"
+    VERSION = "1.4.0"
 
     def __init__(self):
         super().__init__(iface.mainWindow())
@@ -251,6 +254,9 @@ class GeoGrabDialog(QDialog):
         self.cbo_browse_service.setPlaceholderText(
             "Select a service to browse..."
         )
+        self.cbo_browse_service.currentIndexChanged.connect(
+            self._on_browse_service_changed
+        )
         ba_hdr.addWidget(self.cbo_browse_service)
 
         self.btn_browse_connect = QPushButton("Connect")
@@ -258,6 +264,22 @@ class GeoGrabDialog(QDialog):
         self.btn_browse_connect.clicked.connect(self._on_browse_connect)
         ba_hdr.addWidget(self.btn_browse_connect)
         ba_lay.addLayout(ba_hdr)
+
+        # Sub-service selector (shown only for ServiceDirectory entries)
+        self.browse_sub_row = QHBoxLayout()
+        self.lbl_browse_sub = QLabel("  Child Service:")
+        self.browse_sub_row.addWidget(self.lbl_browse_sub)
+        self.cbo_browse_sub = QComboBox()
+        self.cbo_browse_sub.setMinimumWidth(320)
+        self.cbo_browse_sub.setPlaceholderText(
+            "Crawling directory... select a child service"
+        )
+        self.browse_sub_row.addWidget(self.cbo_browse_sub)
+        self.browse_sub_row.addStretch()
+        ba_lay.addLayout(self.browse_sub_row)
+        # Hide sub-service row initially
+        self.lbl_browse_sub.setVisible(False)
+        self.cbo_browse_sub.setVisible(False)
 
         self.tree_browse_all = QTreeWidget()
         self.tree_browse_all.setHeaderLabels(
@@ -685,15 +707,27 @@ class GeoGrabDialog(QDialog):
 
     def _populate_browse_services(self, region_id):
         """Populate the Browse All service selector with region services."""
+        self.cbo_browse_service.blockSignals(True)
         self.cbo_browse_service.clear()
+        self.cbo_browse_sub.clear()
+        self.lbl_browse_sub.setVisible(False)
+        self.cbo_browse_sub.setVisible(False)
         try:
             service_list = self.detector.get_all_service_urls(region_id)
             for svc in service_list:
                 prefix = "[State] " if svc['is_statewide'] else ""
+                svc_type = svc.get('svc_type', 'MapServer')
+                if svc_type == 'ServiceDirectory':
+                    prefix += "[Directory] "
                 label = f"{prefix}{svc['name']}"
-                self.cbo_browse_service.addItem(label, svc['url'])
+                # Store both url and type as item data
+                self.cbo_browse_service.addItem(
+                    label,
+                    {'url': svc['url'], 'svc_type': svc_type}
+                )
         except Exception:
             pass
+        self.cbo_browse_service.blockSignals(False)
 
     # =================================================================
     # BROWSE ALL LAYERS (v1-style discovery on Quick tab)
@@ -707,17 +741,114 @@ class GeoGrabDialog(QDialog):
         else:
             self.btn_browse_all.setText("Browse All Layers...")
 
+    def _on_browse_service_changed(self, idx):
+        """
+        When user changes the service dropdown, detect if it's a
+        ServiceDirectory and auto-crawl to populate the sub-service
+        combo. For direct MapServer/FeatureServer, hide the sub-combo.
+        """
+        self.cbo_browse_sub.clear()
+        self.tree_browse_all.clear()
+
+        if idx < 0:
+            self.lbl_browse_sub.setVisible(False)
+            self.cbo_browse_sub.setVisible(False)
+            return
+
+        data = self.cbo_browse_service.currentData()
+        if not data:
+            self.lbl_browse_sub.setVisible(False)
+            self.cbo_browse_sub.setVisible(False)
+            return
+
+        svc_type = data.get('svc_type', 'MapServer')
+
+        if svc_type == 'ServiceDirectory':
+            # Show the sub-service combo and auto-crawl
+            self.lbl_browse_sub.setVisible(True)
+            self.cbo_browse_sub.setVisible(True)
+            self._crawl_directory(data['url'])
+        else:
+            # Direct service: hide sub-combo
+            self.lbl_browse_sub.setVisible(False)
+            self.cbo_browse_sub.setVisible(False)
+
+    def _crawl_directory(self, directory_url):
+        """
+        Crawl a ServiceDirectory and populate the sub-service combo
+        with all child MapServer/FeatureServer entries.
+        """
+        svc_name = self.cbo_browse_service.currentText()
+        self._log(f"Crawling directory: {svc_name}")
+        self._log(f"  URL: {directory_url}")
+        self.progress.setFormat("Crawling directory...")
+        self.progress.setValue(10)
+        QApplication.processEvents()
+
+        try:
+            children = self.downloader.get_directory_services(directory_url)
+            self.cbo_browse_sub.clear()
+
+            for child in children:
+                label = f"{child['display_name']}  ({child['type']})"
+                self.cbo_browse_sub.addItem(label, child['url'])
+
+            n = len(children)
+            self._log(
+                f"  Found {n} browsable services in {svc_name}"
+            )
+            self.progress.setFormat(
+                f"Directory: {n} services found. Select one and Connect."
+            )
+            self.progress.setValue(100)
+
+            if n == 0:
+                self._log(
+                    "  No MapServer/FeatureServer children found. "
+                    "This directory may require authentication or "
+                    "contain only non-browsable service types."
+                )
+
+        except Exception as ex:
+            self._log(f"  ERROR crawling directory: {ex}")
+            self.progress.setFormat("Directory crawl failed")
+            QMessageBox.warning(
+                self, "Directory Error",
+                f"Could not crawl the service directory:\n\n{ex}"
+            )
+
     def _on_browse_connect(self):
-        """Connect to the selected service and list ALL feature layers."""
-        url = self.cbo_browse_service.currentData()
-        if not url:
+        """
+        Connect to the selected service and list ALL feature layers.
+        For ServiceDirectory entries, reads from the sub-service combo.
+        For direct MapServer/FeatureServer, reads the main combo.
+        """
+        data = self.cbo_browse_service.currentData()
+        if not data:
             QMessageBox.warning(
                 self, "No Service",
                 "Select a service from the dropdown first."
             )
             return
 
-        svc_name = self.cbo_browse_service.currentText()
+        svc_type = data.get('svc_type', 'MapServer')
+
+        if svc_type == 'ServiceDirectory':
+            # Use the sub-service combo for the actual URL
+            url = self.cbo_browse_sub.currentData()
+            if not url:
+                QMessageBox.warning(
+                    self, "No Child Service",
+                    "Select a child service from the dropdown first.\n\n"
+                    "If the dropdown is empty, the directory may not "
+                    "contain any browsable services."
+                )
+                return
+            svc_name = self.cbo_browse_sub.currentText()
+        else:
+            url = data['url']
+            svc_name = self.cbo_browse_service.currentText()
+
         self._log(f"Browsing all layers: {svc_name}")
         self._log(f"  URL: {url}")
         self.progress.setFormat("Connecting...")
@@ -747,7 +878,9 @@ class GeoGrabDialog(QDialog):
                 count += 1
 
             self._log(f"  Found {count} feature layers in {svc_name}")
-            self.progress.setFormat(f"Browse: {count} layers from {svc_name}")
+            self.progress.setFormat(
+                f"Browse: {count} layers from {svc_name}"
+            )
             self.progress.setValue(100)
 
         except Exception as ex:

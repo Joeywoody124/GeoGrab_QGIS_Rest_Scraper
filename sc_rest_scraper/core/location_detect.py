@@ -328,34 +328,51 @@ class LocationDetector:
 
         return result
 
+    # Service types that can be queried for feature layers directly
+    BROWSABLE_TYPES = {'MapServer', 'FeatureServer'}
+    # Service types that are directory listings of child services
+    DIRECTORY_TYPES = {'ServiceDirectory'}
+    # Service types that cannot be browsed via REST
+    NON_BROWSABLE_TYPES = {'WebApp', 'Portal', 'OpenDataHub', 'ImageServer'}
+
     def get_all_service_urls(self, region_id):
         """
         Return a flat list of all unique service URLs for a region,
-        including statewide services.
+        including statewide services. Each entry includes a 'svc_type'
+        field so the GUI can handle directories vs direct endpoints.
+
+        Only includes MapServer, FeatureServer, and ServiceDirectory.
+        Skips WebApp, Portal, OpenDataHub, ImageServer.
 
         Returns:
-            list of dict: [{url, name, is_statewide}, ...]
+            list of dict: [{url, name, is_statewide, svc_type}, ...]
         """
         services = self.get_services_for_region(region_id)
+        allowed = self.BROWSABLE_TYPES | self.DIRECTORY_TYPES
         result = []
         seen = set()
+
         for svc in services['local']:
             url = svc['url']
-            if url not in seen:
+            svc_type = svc.get('type', 'MapServer')
+            if url not in seen and svc_type in allowed:
                 seen.add(url)
                 result.append({
                     'url': url,
                     'name': svc['name'],
-                    'is_statewide': False
+                    'is_statewide': False,
+                    'svc_type': svc_type,
                 })
         for svc in services['statewide']:
             url = svc.get('url', '')
-            if url and url not in seen:
+            svc_type = svc.get('type', 'MapServer')
+            if url and url not in seen and svc_type in allowed:
                 seen.add(url)
                 result.append({
                     'url': url,
                     'name': svc['name'],
-                    'is_statewide': True
+                    'is_statewide': True,
+                    'svc_type': svc_type,
                 })
         return result
 

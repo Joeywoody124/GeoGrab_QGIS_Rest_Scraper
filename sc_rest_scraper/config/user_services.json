@@ -4,5 +4,20 @@
     "description": "User-saved service bookmarks with persistent layer selections. This file grows as you save custom services and their layer preferences.",
     "notes": "Edited by GeoGrab. Manual edits are fine but keep valid JSON."
   },
-  "services": []
+  "services": [
+    {
+      "name": "Colleton County",
+      "url": "https://services1.arcgis.com/m0cnLGKdhwao8WvM/arcgis/rest/services/",
+      "layers": [],
+      "added": "2026-02-06T09:32:14.288504",
+      "updated": "2026-02-06T09:32:14.288504"
+    },
+    {
+      "name": "USGSTopo MapServer",
+      "url": "https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer",
+      "layers": [],
+      "added": "2026-02-06T09:34:53.054560",
+      "updated": "2026-02-06T09:34:53.054560"
+    }
+  ]
 }
