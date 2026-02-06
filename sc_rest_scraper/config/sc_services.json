@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "version": "1.4.0",
+    "version": "1.5.0",
     "updated": "2026-02-06",
     "description": "ArcGIS REST service catalog for GeoGrab QGIS tool (SC + NC)",
     "notes": "Layer IDs may change when services are republished. Verify periodically."

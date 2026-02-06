@@ -3,6 +3,39 @@
 All notable changes to GeoGrab are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.0] - 2026-02-06
+
+### Added
+- **Custom URL directory detection**: When a ServiceDirectory URL is pasted
+  into the Custom URL tab, GeoGrab now detects it automatically (via
+  `detect_url_type()`), crawls the directory, and shows a "Child Service"
+  dropdown with a Browse button. Previously, pasting a directory URL just
+  returned "0 feature layers found" with no useful feedback.
+- **`detect_url_type()` method** in `downloader.py`: Probes a REST URL to
+  determine if it's a MapServer/FeatureServer (has `"layers"`) or a
+  ServiceDirectory (has `"services"`). Returns 'service', 'directory',
+  or 'unknown'.
+- **Service health monitoring**: Quick Download tab now runs health checks
+  on each service at detection time (5-second timeout per service).
+  Status column shows color-coded results: green "Online (Xms)", yellow
+  "Slow (Xms)" for >2 seconds, red "Offline" for unreachable services.
+  Results are cached per session so re-detection doesn't re-check.
+
+### Fixed
+- **404 errors on query endpoints** (Charleston County, other ArcGIS 10.91+
+  servers): All feature query operations (count, OID retrieval, batch
+  download) and safety pre-flight checks now use HTTP POST instead of GET.
+  Some ArcGIS Server instances reject GET requests when URL length exceeds
+  their limit due to geometry filter parameters and OID ranges. POST sends
+  parameters as form-encoded body data, eliminating the URL length issue.
+  New `fetch_json_post()` method in `downloader.py`. Service discovery,
+  health checks, and layer listings still use GET (short URLs).
+
+### Changed
+- Custom URL tab now has a sub-service row (Child Service combo + Browse
+  button) that appears only when a ServiceDirectory is detected
+- Version bumped to 1.5.0
+
 ## [1.4.0] - 2026-02-06
 
 ### Added

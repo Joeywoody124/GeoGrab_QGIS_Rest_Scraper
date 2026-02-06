@@ -67,7 +67,7 @@ class RESTDownloader:
     # -----------------------------------------------------------------
     def fetch_json(self, url, params=None):
         """
-        Fetch JSON from a URL with optional query parameters.
+        Fetch JSON from a URL via GET with optional query parameters.
 
         Args:
             url: Base URL
@@ -91,6 +91,54 @@ class RESTDownloader:
 
         req = urllib.request.Request(full_url)
         req.add_header('User-Agent', self.USER_AGENT)
+
+        try:
+            with urllib.request.urlopen(
+                req, timeout=self.TIMEOUT, context=ctx
+            ) as resp:
+                raw = resp.read().decode('utf-8')
+                return json.loads(raw)
+        except json.JSONDecodeError as e:
+            raise Exception(
+                f"Response is not valid JSON from {url}: {e}"
+            )
+        except Exception as e:
+            raise Exception(f"Network error fetching {url}: {e}")
+
+    def fetch_json_post(self, url, params=None):
+        """
+        Fetch JSON from a URL via POST with form-encoded parameters.
+
+        POST avoids URL length limits that cause 404 errors on some
+        ArcGIS Server instances (especially older versions like 10.91)
+        when query parameters include large geometry filters, long
+        WHERE clauses, or many OID ranges.
+
+        All ArcGIS REST /query endpoints support POST.
+
+        Args:
+            url: Base URL (e.g., .../MapServer/21/query)
+            params: Dict of form parameters
+
+        Returns:
+            Parsed JSON as dict
+
+        Raises:
+            Exception: On network error or non-JSON response
+        """
+        ctx = ssl.create_default_context()
+        if not self.verify_ssl:
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+
+        body = urllib.parse.urlencode(params or {}).encode('utf-8')
+        req = urllib.request.Request(
+            url, data=body, method='POST'
+        )
+        req.add_header('User-Agent', self.USER_AGENT)
+        req.add_header(
+            'Content-Type', 'application/x-www-form-urlencoded'
+        )
 
         try:
             with urllib.request.urlopen(
@@ -151,6 +199,23 @@ class RESTDownloader:
         # Sort alphabetically by display name
         results.sort(key=lambda x: x['display_name'].lower())
         return results
+
+    def detect_url_type(self, url):
+        """
+        Probe a REST URL to determine if it's a MapServer/FeatureServer
+        or a ServiceDirectory.
+
+        Returns:
+            'service'   - has a "layers" key (MapServer/FeatureServer)
+            'directory' - has a "services" key (ServiceDirectory)
+            'unknown'   - neither key found
+        """
+        data = self.fetch_json(url.rstrip('/'), {'f': 'json'})
+        if 'layers' in data:
+            return 'service'
+        if 'services' in data:
+            return 'directory'
+        return 'unknown'
 
     def get_service_layers(self, service_url):
         """
@@ -265,7 +330,7 @@ class RESTDownloader:
             'returnCountOnly': 'true',
             'f': 'json'
         })
-        total = self.fetch_json(qurl, count_params).get('count', 0)
+        total = self.fetch_json_post(qurl, count_params).get('count', 0)
 
         if total == 0:
             if progress_cb:
@@ -281,7 +346,7 @@ class RESTDownloader:
             'returnIdsOnly': 'true',
             'f': 'json'
         })
-        oid_resp = self.fetch_json(qurl, oid_params)
+        oid_resp = self.fetch_json_post(qurl, oid_params)
         oid_field = oid_resp.get('objectIdFieldName', 'OBJECTID')
         oids = sorted(oid_resp.get('objectIds', []))
 
@@ -330,7 +395,7 @@ class RESTDownloader:
             if sr_wkid:
                 qp['outSR'] = str(sr_wkid)
 
-            bd = self.fetch_json(qurl, qp)
+            bd = self.fetch_json_post(qurl, qp)
             all_feats.extend(bd.get('features', []))
 
             if sp_ref is None and 'spatialReference' in bd:

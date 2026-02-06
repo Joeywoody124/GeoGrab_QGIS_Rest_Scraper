@@ -1,5 +1,5 @@
 """
-main_dialog.py - GeoGrab Main Window (v1.4.0)
+main_dialog.py - GeoGrab Main Window (v1.5.0)
 ===============================================
 Professional tabbed interface for REST service data download.
 
@@ -46,7 +46,7 @@ from sc_rest_scraper.core.safety import SafetyChecker, SafetyConfig
 class GeoGrabDialog(QDialog):
     """Main GeoGrab application window."""
 
-    VERSION = "1.4.0"
+    VERSION = "1.5.0"
 
     def __init__(self):
         super().__init__(iface.mainWindow())
@@ -68,6 +68,7 @@ class GeoGrabDialog(QDialog):
         self._custom_layers = []
         self._svc_layers = []
         self._browse_all_visible = False  # Track browse-all panel state
+        self._health_cache = {}  # {url: health_result_dict}
 
         # Build UI
         self._build()
@@ -337,6 +338,29 @@ class GeoGrabDialog(QDialog):
         btn_go.clicked.connect(self._on_custom_connect)
         url_row.addWidget(btn_go)
         L.addLayout(url_row)
+
+        # Sub-service selector (shown when URL is a ServiceDirectory)
+        self.custom_sub_row = QHBoxLayout()
+        self.lbl_custom_sub = QLabel("  Child Service:")
+        self.custom_sub_row.addWidget(self.lbl_custom_sub)
+        self.cbo_custom_sub = QComboBox()
+        self.cbo_custom_sub.setMinimumWidth(320)
+        self.cbo_custom_sub.setPlaceholderText(
+            "Select a child service..."
+        )
+        self.custom_sub_row.addWidget(self.cbo_custom_sub)
+        self.btn_custom_sub_connect = QPushButton("Browse")
+        self.btn_custom_sub_connect.setFixedWidth(80)
+        self.btn_custom_sub_connect.clicked.connect(
+            self._on_custom_sub_connect
+        )
+        self.custom_sub_row.addWidget(self.btn_custom_sub_connect)
+        self.custom_sub_row.addStretch()
+        L.addLayout(self.custom_sub_row)
+        # Hide sub-service row initially
+        self.lbl_custom_sub.setVisible(False)
+        self.cbo_custom_sub.setVisible(False)
+        self.btn_custom_sub_connect.setVisible(False)
 
         self.tree_custom = QTreeWidget()
         self.tree_custom.setHeaderLabels(
@@ -679,8 +703,36 @@ class GeoGrabDialog(QDialog):
             ('building_footprints', 'Building Footprints'),
         ]
 
+        # Collect unique service URLs for health checks
+        matches = {}
         for ltype, display_name in layer_types:
             match = self.detector.find_layer_by_type(region_id, ltype)
+            matches[ltype] = match
+            if match:
+                url = match['service_url']
+                if url not in self._health_cache:
+                    self._health_cache[url] = None  # Mark for checking
+
+        # Run health checks for unchecked services
+        urls_to_check = [
+            u for u, v in self._health_cache.items() if v is None
+        ]
+        if urls_to_check:
+            self.progress.setFormat("Checking service health...")
+            self.progress.setValue(0)
+            QApplication.processEvents()
+            for i, url in enumerate(urls_to_check):
+                pct = int((i / len(urls_to_check)) * 50)
+                self.progress.setValue(pct)
+                QApplication.processEvents()
+                self._health_cache[url] = (
+                    self.downloader.check_service_health(url, timeout=5)
+                )
+            self.progress.setFormat("Ready")
+            self.progress.setValue(0)
+
+        for ltype, display_name in layer_types:
+            match = matches[ltype]
             item = QTreeWidgetItem()
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(0, Qt.Unchecked)
@@ -688,8 +740,6 @@ class GeoGrabDialog(QDialog):
 
             if match:
                 item.setText(1, match['service_name'])
-                item.setText(2, "Available")
-                item.setForeground(2, QColor('#3a8a3e'))
                 item.setData(0, Qt.UserRole, {
                     'layer_type': ltype,
                     'service_url': match['service_url'],
@@ -697,6 +747,23 @@ class GeoGrabDialog(QDialog):
                     'layer_id_hint': match.get('layer_id_hint', ''),
                     'layer_name': match['layer_name'],
                 })
+
+                # Color-code status from health check
+                health = self._health_cache.get(match['service_url'])
+                if health and health['alive']:
+                    ms = health['response_ms']
+                    if ms > 2000:
+                        item.setText(2, f"Slow ({ms}ms)")
+                        item.setForeground(2, QColor('#d4880f'))
+                    else:
+                        item.setText(2, f"Online ({ms}ms)")
+                        item.setForeground(2, QColor('#3a8a3e'))
+                elif health and not health['alive']:
+                    item.setText(2, "Offline")
+                    item.setForeground(2, QColor('#d63b3b'))
+                else:
+                    item.setText(2, "Available")
+                    item.setForeground(2, QColor('#3a8a3e'))
             else:
                 item.setText(1, "--")
                 item.setText(2, "Not configured")
@@ -923,13 +990,64 @@ class GeoGrabDialog(QDialog):
             return
 
         self._log(f"Connecting to {url}...")
-        self.progress.setFormat("Connecting...")
+        self.progress.setFormat("Detecting URL type...")
+        self.progress.setValue(5)
         QApplication.processEvents()
 
+        # Reset sub-service row and layer tree
+        self.lbl_custom_sub.setVisible(False)
+        self.cbo_custom_sub.setVisible(False)
+        self.btn_custom_sub_connect.setVisible(False)
+        self.cbo_custom_sub.clear()
+        self.tree_custom.clear()
+
         try:
+            url_type = self.downloader.detect_url_type(url)
+
+            if url_type == 'directory':
+                # It's a ServiceDirectory: crawl and show sub-combo
+                self._log(f"  Detected ServiceDirectory. Crawling...")
+                self.progress.setFormat("Crawling directory...")
+                self.progress.setValue(10)
+                QApplication.processEvents()
+
+                children = self.downloader.get_directory_services(url)
+                self.cbo_custom_sub.clear()
+                for child in children:
+                    label = (
+                        f"{child['display_name']}  ({child['type']})"
+                    )
+                    self.cbo_custom_sub.addItem(label, child['url'])
+
+                n = len(children)
+                self._log(
+                    f"  Found {n} browsable child services. "
+                    f"Select one and click Browse."
+                )
+                self.progress.setFormat(
+                    f"Directory: {n} services. Select one and Browse."
+                )
+                self.progress.setValue(100)
+
+                # Show the sub-service row
+                self.lbl_custom_sub.setVisible(True)
+                self.cbo_custom_sub.setVisible(True)
+                self.btn_custom_sub_connect.setVisible(True)
+
+                if n == 0:
+                    self._log(
+                        "  No MapServer/FeatureServer children found. "
+                        "This directory may require authentication."
+                    )
+                return
+
+            # Normal MapServer/FeatureServer
+            self.progress.setFormat("Fetching layers...")
+            self.progress.setValue(30)
+            QApplication.processEvents()
+
             layers = self.downloader.get_service_layers(url)
             self._custom_layers = layers
-            self.tree_custom.clear()
 
             for lyr in layers:
                 if lyr['type'] != 'Feature Layer':
@@ -953,6 +1071,53 @@ class GeoGrabDialog(QDialog):
             self.progress.setValue(100)
         except Exception as ex:
             self._log(f"ERROR: {ex}")
+            self.progress.setFormat("Connection failed")
+            QMessageBox.warning(self, "Connection Error", str(ex))
+
+    def _on_custom_sub_connect(self):
+        """Browse layers from a child service selected in the sub-combo."""
+        child_url = self.cbo_custom_sub.currentData()
+        if not child_url:
+            QMessageBox.warning(
+                self, "No Service",
+                "Select a child service from the dropdown first."
+            )
+            return
+
+        child_name = self.cbo_custom_sub.currentText()
+        self._log(f"Browsing child service: {child_name}")
+        self._log(f"  URL: {child_url}")
+        self.progress.setFormat("Connecting to child service...")
+        self.progress.setValue(10)
+        QApplication.processEvents()
+
+        try:
+            layers = self.downloader.get_service_layers(child_url)
+            self._custom_layers = layers
+            self.tree_custom.clear()
+
+            for lyr in layers:
+                if lyr['type'] != 'Feature Layer':
+                    continue
+                item = QTreeWidgetItem()
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setCheckState(0, Qt.Unchecked)
+                item.setText(1, str(lyr['id']))
+                item.setText(2, lyr['name'])
+                item.setText(3, lyr['type'])
+                item.setData(0, Qt.UserRole, {
+                    'service_url': child_url,
+                    'layer_id': lyr['id'],
+                    'layer_name': lyr['name'],
+                })
+                self.tree_custom.addTopLevelItem(item)
+
+            n = self.tree_custom.topLevelItemCount()
+            self._log(f"  Found {n} feature layers in {child_name}")
+            self.progress.setFormat(f"Connected: {n} layers")
+            self.progress.setValue(100)
+        except Exception as ex:
+            self._log(f"  ERROR: {ex}")
             self.progress.setFormat("Connection failed")
             QMessageBox.warning(self, "Connection Error", str(ex))
 

@@ -290,7 +290,7 @@ class SafetyChecker:
             # Use a shorter timeout for the safety count check
             original_timeout = downloader.TIMEOUT
             downloader.TIMEOUT = self.config.count_timeout
-            result = downloader.fetch_json(qurl, params)
+            result = downloader.fetch_json_post(qurl, params)
             downloader.TIMEOUT = original_timeout
             return result.get('count', -1)
         except Exception:

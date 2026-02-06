@@ -5,7 +5,7 @@
 ![QGIS](https://img.shields.io/badge/QGIS-3.40+-3aaa35.svg?logo=qgis&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.9+-3776AB.svg?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Version](https://img.shields.io/badge/version-1.4.0-0288d1.svg)
+![Version](https://img.shields.io/badge/version-1.5.0-0288d1.svg)
 
 ---
 
@@ -183,7 +183,7 @@ GeoGrab_QGIS_Rest_Scraper/
     LICENSE
     .gitignore
     sc_rest_scraper/
-        __init__.py                      # Package version (1.4.0)
+        __init__.py                      # Package version (1.5.0)
         core/
             downloader.py                # REST engine: fetch, paginate, convert, export
             location_detect.py           # Auto-detect region from canvas + CRS
@@ -236,7 +236,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full walkthrough.
 - [x] Browse All Layers panel with service directory crawling
 - [x] Sketch (light) theme with Medium and Dark options
 - [x] Auto pycache cleanup in launcher
-- [ ] Service health monitoring with color-coded status
+- [x] Service health monitoring with color-coded status (Online/Slow/Offline)
+- [x] Custom URL tab auto-detects ServiceDirectory URLs and crawls them
 - [ ] Download history log for deliverable documentation
 - [ ] Settings panel (default CRS, batch size, proxy, SSL)
 - [ ] Theme toggle in GUI
